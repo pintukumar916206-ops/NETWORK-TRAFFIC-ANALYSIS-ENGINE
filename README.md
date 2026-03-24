@@ -1,4 +1,4 @@
-# High-Performance DPI Engine (Portfolio Project)
+# High-Performance DPI Engine 
 
 A multi-threaded Deep Packet Inspection (DPI) engine implemented in C++. It handles flow classification (TLS SNI, HTTP Host) at high speeds using a pipelined architecture.
 
@@ -82,10 +82,3 @@ Dashboard available at: **[http://localhost:5000](http://localhost:5000)**
 
 The design borrows heavily from industry standard engines like Snort 3 and Suricata. The goal was to prove that you can achieve high throughput on standard hardware if you respect the CPU cache and avoid unnecessary locking.
 
-**Current TODOs:**
-
-- [ ] Implement SIMD-accelerated header parsing.
-- [ ] Add support for DPDK or AF_PACKET for live 10Gbps wire rates.
-- [ ] Hardening against TCP segment overlap exploits.
-
-_Created as a technical demonstration of systems programming and network engineering._
