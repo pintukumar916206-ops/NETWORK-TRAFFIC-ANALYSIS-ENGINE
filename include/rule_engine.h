@@ -20,6 +20,11 @@ public:
   void addBlockApp(AppType app);
   void addBlockPort(uint16_t port);
 
+  // Load rules from a JSON config file.
+  // Format: {"rules": [{"type": "domain|ip|port", "value": "..."}]}
+  // Returns number of rules loaded, or -1 on error.
+  int loadFromFile(const std::string &path);
+
   // ── Hot-path evaluation (thread-safe read-only) ─────────────────
   // Returns true if the packet/flow should be dropped.
   bool shouldBlock(const ParsedPacket &pkt, const Flow &flow) const noexcept;

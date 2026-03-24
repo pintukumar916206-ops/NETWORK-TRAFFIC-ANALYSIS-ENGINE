@@ -24,13 +24,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Copy the compiled engine from the builder stage
-COPY --from=builder /app/build/high_performance_engine /app/high_performance_engine
+COPY --from=builder /app/build/traffic_engine /app/traffic_engine
 
 # Ensure permissions and directories
-RUN chmod +x /app/high_performance_engine && mkdir -p uploads
+RUN chmod +x /app/traffic_engine && mkdir -p uploads
 
 # Environment Variables for manual setup
-ENV ANALYZER_BIN=/app/high_performance_engine
+ENV ANALYZER_BIN=/app/traffic_engine
 ENV UPLOAD_FOLDER=/app/uploads
 ENV PORT=5000
 

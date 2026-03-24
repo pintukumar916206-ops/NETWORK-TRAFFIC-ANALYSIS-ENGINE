@@ -36,6 +36,7 @@ public:
   void addBlockDomain(const std::string &domain);
   void addBlockApp(const std::string &app_name);
   void addBlockPort(uint16_t port);
+  void loadRules(const std::string &path);
 
   void run();
   void printSummary() const;

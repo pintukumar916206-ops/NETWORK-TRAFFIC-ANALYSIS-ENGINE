@@ -1,29 +1,30 @@
 #include "dpi_pipeline.h"
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <vector>
 
 void printHelp() {
-  std::cout << "HIGH-PERFORMANCE NETWORK PROCESSING ENGINE\n"
-            << "Usage: packet_analyzer [options]\n\n"
+  std::cout << "NETWORK TRAFFIC ANALYSIS ENGINE\n"
+            << "Usage: traffic_engine [options]\n\n"
             << "Options:\n"
             << "  --input <file>       Input PCAP file (required)\n"
             << "  --output <file>      Filtered PCAP output file\n"
             << "  --threads <N>        Number of worker threads (default: 4)\n"
             << "  --stats              Print real-time processing statistics\n"
-            << "  --verbose            Print detailed per-packet logs (slow!)\n"
+            << "  --benchmark          Run 3 passes and print averaged throughput results\n"
+            << "  --rules <file>       Load blocking rules from a JSON config file\n"
+            << "  --verbose            Print detailed per-packet logs\n"
             << "  --block-ip <IP>      Block traffic to/from this IP or CIDR\n"
-            << "  --block-domain <str> Block traffic containing this domain "
-               "substring\n"
-            << "  --block-app <app>    Block a specific application (YouTube, "
-               "Facebook, etc.)\n"
+            << "  --block-domain <str> Block traffic matching this domain substring\n"
+            << "  --block-app <app>    Block a specific application (youtube, netflix, etc.)\n"
             << "  --block-port <port>  Block a specific destination port\n"
-            << "  --loop               Continuous looping (useful for performance monitoring)\n"
-            << "  --delay <ms>         Delay between loops in milliseconds (default: 1000)\n"
+            << "  --loop               Continuous looping\n"
+            << "  --delay <ms>         Delay between loops in ms (default: 1000)\n"
             << "  --help               Display this help message\n\n"
             << "Example:\n"
-            << "  packet_analyzer --input sample.pcap --threads 8 --block-app "
-               "Netflix\n\n";
+            << "  traffic_engine --input capture.pcap --threads 4 --benchmark\n"
+            << "  traffic_engine --input capture.pcap --rules rules.json\n\n";
 }
 
 int main(int argc, char **argv) {
@@ -37,6 +38,9 @@ int main(int argc, char **argv) {
   std::vector<std::string> block_domains;
   std::vector<std::string> block_apps;
   std::vector<uint16_t> block_ports;
+
+  std::string rules_file;
+  bool benchmark_mode = false;
 
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
@@ -55,6 +59,10 @@ int main(int argc, char **argv) {
       cfg.json_output = true;
     } else if (arg == "--verbose") {
       cfg.verbose = true;
+    } else if (arg == "--benchmark") {
+      benchmark_mode = true;
+    } else if (arg == "--rules" && i + 1 < argc) {
+      rules_file = argv[++i];
     } else if (arg == "--block-ip" && i + 1 < argc) {
       block_ips.push_back(argv[++i]);
     } else if (arg == "--block-domain" && i + 1 < argc) {
@@ -75,12 +83,44 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  // Benchmark mode: run 3 passes, average the results
+  if (benchmark_mode) {
+    const int PASSES = 3;
+    double total_pps = 0, total_mbps = 0, total_us = 0;
+    std::cout << "[BENCHMARK] Running " << PASSES << " passes on "
+              << cfg.input_file << "  (" << cfg.num_workers << " threads)\n\n";
+    for (int pass = 1; pass <= PASSES; ++pass) {
+      DpiPipeline pipeline(cfg);
+      if (!rules_file.empty()) pipeline.loadRules(rules_file);
+      for (const auto& ip : block_ips)    pipeline.addBlockIP(ip);
+      for (const auto& d  : block_domains) pipeline.addBlockDomain(d);
+      for (const auto& a  : block_apps)    pipeline.addBlockApp(a);
+      for (const auto& p  : block_ports)   pipeline.addBlockPort(p);
+      pipeline.run();
+      const Stats& s = pipeline.stats();
+      double pps = s.throughputPps(), mbps = s.throughputMBps(), us = s.avgLatencyUs();
+      std::cout << "  Pass " << pass << ":  "
+                << std::fixed << std::setprecision(0) << pps << " pps  /  "
+                << std::setprecision(1) << mbps << " MB/s  /  "
+                << std::setprecision(1) << us << " us avg latency\n";
+      total_pps += pps; total_mbps += mbps; total_us += us;
+    }
+    std::cout << "\n  Averaged over " << PASSES << " passes:\n";
+    std::cout << "    Throughput:  " << std::fixed << std::setprecision(0)
+              << total_pps / PASSES << " pps  /  "
+              << std::setprecision(1) << total_mbps / PASSES << " MB/s\n";
+    std::cout << "    Avg Latency: " << total_us / PASSES << " us/pkt\n";
+    std::cout << "    Threads:     " << cfg.num_workers << "\n";
+    return 0;
+  }
+
   do {
     DpiPipeline pipeline(cfg);
-    for (const auto &ip : block_ips)    pipeline.addBlockIP(ip);
-    for (const auto &d : block_domains) pipeline.addBlockDomain(d);
-    for (const auto &a : block_apps)    pipeline.addBlockApp(a);
-    for (const auto &p : block_ports)   pipeline.addBlockPort(p);
+    if (!rules_file.empty()) pipeline.loadRules(rules_file);
+    for (const auto& ip : block_ips)    pipeline.addBlockIP(ip);
+    for (const auto& d  : block_domains) pipeline.addBlockDomain(d);
+    for (const auto& a  : block_apps)    pipeline.addBlockApp(a);
+    for (const auto& p  : block_ports)   pipeline.addBlockPort(p);
 
     pipeline.run();
     if (cfg.json_output) {

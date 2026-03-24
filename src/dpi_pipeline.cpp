@@ -6,6 +6,7 @@
 #include <chrono>
 #include <atomic>
 #include <cstdint>
+#include <unordered_map>
 
 DpiPipeline::DpiPipeline(Config cfg)
     : cfg_(cfg), output_queue_(cfg.queue_capacity) {
@@ -20,6 +21,7 @@ DpiPipeline::DpiPipeline(Config cfg)
 void DpiPipeline::addBlockIP(const std::string& ip) { rules_.addBlockIP(ip); }
 void DpiPipeline::addBlockDomain(const std::string& d) { rules_.addBlockDomain(d); }
 void DpiPipeline::addBlockPort(uint16_t p) { rules_.addBlockPort(p); }
+void DpiPipeline::loadRules(const std::string& path) { rules_.loadFromFile(path); }
 void DpiPipeline::addBlockApp(const std::string& a) {
     if (a == "youtube") rules_.addBlockApp(AppType::YOUTUBE);
     else if (a == "facebook") rules_.addBlockApp(AppType::FACEBOOK);
@@ -31,7 +33,7 @@ void DpiPipeline::run() {
     // Finalize rules
     rules_.buildAutomata();
 
-    std::cout << "Starting DPI Engine (" << cfg_.num_workers << " workers)...\n";
+    std::cout << "Starting NETWORK TRAFFIC ANALYSIS ENGINE (" << cfg_.num_workers << " workers)...\n";
     if (rules_.hasRules()) {
         std::cout << "Active Rules:\n";
         rules_.printRules();
@@ -52,14 +54,20 @@ void DpiPipeline::run() {
         stats_t = std::make_unique<compat::thread>([this]{ this->statsThread(); });
     }
 
-    // 2. Wait for completion
+    // 2. Wait for reader to finish
     reader_t.join();
-    for (auto& w : workers) w->join();
-    
-    output_queue_.shutdown();
-    writer_t.join();
 
+    // 3. Signal shutdown to all queues
+    for (auto& q : worker_queues_) {
+        q->shutdown();
+    }
+    output_queue_.shutdown();
+
+    // 4. Wait for consumers to finish
+    for (auto& w : workers) w->join();
+    writer_t.join();
     if (stats_t) stats_t->join();
+
 
     // 3. Collect final flow records for reporting
     for (const auto& ft : flow_trackers_) {
@@ -211,16 +219,9 @@ void DpiPipeline::writerThread() {
 }
 
 void DpiPipeline::statsThread() {
-    while (true) {
-        // Simple manual sleep for 1s
-        auto start = std::chrono::steady_clock::now();
-        while (std::chrono::steady_clock::now() - start < std::chrono::seconds(1)) {
-            // Check if we should exit (dirty but effective for simple stats thread)
-            if (stats_.total_packets.load() > 0 && 
-                stats_.forwarded_packets.load() + stats_.blocked_packets.load() + stats_.malformed_packets.load() >= stats_.total_packets.load() &&
-                workers_done_.load() >= cfg_.num_workers) return;
-        }
-
+    while (workers_done_.load() < cfg_.num_workers) {
+        compat::sleep_ms(1000);
+        
         std::cout << "[STATS] " << std::fixed << std::setprecision(0) 
                   << stats_.throughputPps() << " pps | Latency: " 
                   << std::setprecision(2) << stats_.avgLatencyMs() << " ms | Blocks: "
@@ -260,31 +261,94 @@ bool DpiPipeline::quickTuple(const RawPacket& raw, FiveTuple& out) {
 }
 
 void DpiPipeline::printSummary() const {
-    std::cout << "\nDPI Summary\n";
-    std::cout << "  Duration:          " << std::fixed << std::setprecision(2) << stats_.elapsedSec() << " s\n";
-    std::cout << "  Total Packets:     " << stats_.total_packets.load() << "\n";
-    std::cout << "  Total Bytes:       " << stats_.total_bytes.load() << "\n";
-    std::cout << "  Throughput:        " << std::fixed << std::setprecision(0) << stats_.throughputPps() << " pps\n";
-    std::cout << "  Avg Latency:       " << std::setprecision(3) << stats_.avgLatencyMs() << " ms\n";
-    std::cout << "  Blocked:           " << stats_.blocked_packets.load() << " (" << std::setprecision(1) << stats_.blockRatePct() << "%)\n";
-    std::cout << "  Dropped:           " << stats_.dropped_packets.load() << "\n";
-    std::cout << "  TCP/UDP/ICMP:      " << stats_.tcp_packets.load() << "/" << stats_.udp_packets.load() << "/" << stats_.icmp_packets.load() << "\n";
-    
-    // Top flows by byte count
+    uint64_t total    = stats_.total_packets.load();
+    uint64_t parsed   = total - stats_.malformed_packets.load();
+    uint64_t blocked  = stats_.blocked_packets.load();
+    uint64_t dropped  = stats_.dropped_packets.load();
+    uint64_t forwarded = stats_.forwarded_packets.load();
+
+    auto pct = [](uint64_t n, uint64_t d) -> double {
+        return d > 0 ? 100.0 * double(n) / double(d) : 0.0;
+    };
+
+    std::cout << "\n--- NETWORK TRAFFIC ANALYSIS ENGINE ---\n";
+    std::cout << "  Duration:    " << std::fixed << std::setprecision(2)
+              << stats_.elapsedSec() << " s\n";
+    std::cout << "  Throughput:  " << std::setprecision(0)
+              << stats_.throughputPps() << " pps  /  "
+              << std::setprecision(1) << stats_.throughputMBps() << " MB/s\n";
+    std::cout << "  Avg Latency: " << std::setprecision(1)
+              << stats_.avgLatencyUs() << " us/pkt\n";
+    std::cout << "  Threads:     " << cfg_.num_workers << "\n\n";
+
+    // Per-stage pipeline counters
+    std::cout << "  Pipeline Stage Breakdown:\n";
+    std::cout << "    [Reader ] " << total << " pkts read\n";
+    std::cout << "    [Parser ] " << parsed << " parsed"
+              << "  (" << stats_.malformed_packets.load() << " malformed, "
+              << std::setprecision(1) << pct(stats_.malformed_packets.load(), total) << "%)\n";
+    std::cout << "    [DPI    ] " << parsed << " inspected\n";
+    std::cout << "    [Rules  ] " << parsed << " evaluated"
+              << "  (" << blocked << " blocked, "
+              << pct(blocked, parsed) << "%)\n";
+    std::cout << "    [Drop   ] " << dropped
+              << "  (queue overflow = " << pct(dropped, total) << "%)\n";
+    std::cout << "    [Forward] " << forwarded << "\n";
+
+    std::cout << "\n  Protocol Mix:  TCP " << stats_.tcp_packets.load()
+              << " / UDP " << stats_.udp_packets.load()
+              << " / ICMP " << stats_.icmp_packets.load() << "\n";
+
+    // --- Top Domains (Signature Feature) ---
+    std::unordered_map<std::string, uint64_t> domain_flows;
+    uint64_t total_flows_with_sni = 0;
+    for (const auto& f : all_flows_) {
+        if (!f.sni.empty()) {
+            domain_flows[f.sni] += f.pkt_count;
+            ++total_flows_with_sni;
+        }
+    }
+
+    if (!domain_flows.empty()) {
+        std::vector<std::pair<std::string, uint64_t>> sorted_domains(
+            domain_flows.begin(), domain_flows.end());
+        std::sort(sorted_domains.begin(), sorted_domains.end(),
+                  [](const auto& a, const auto& b){ return a.second > b.second; });
+
+        std::cout << "\n  Top Observed Domains:\n";
+        uint64_t total_domain_pkts = 0;
+        for (const auto& d : sorted_domains) total_domain_pkts += d.second;
+
+        size_t display = std::min(sorted_domains.size(), size_t(8));
+        for (size_t i = 0; i < display; ++i) {
+            double share = total_domain_pkts > 0
+                ? 100.0 * double(sorted_domains[i].second) / double(total_domain_pkts)
+                : 0.0;
+            std::cout << "    " << std::left << std::setw(30) << sorted_domains[i].first
+                      << std::right << std::setw(8) << sorted_domains[i].second << " pkts"
+                      << "  (" << std::fixed << std::setprecision(1) << share << "%)\n";
+        }
+    }
+
+    // Top Flows by Bytes
     std::vector<Flow> top = all_flows_;
     std::sort(top.begin(), top.end(), [](const Flow& a, const Flow& b){
         return a.byte_count > b.byte_count;
     });
 
-    std::cout << "\n  Top Active Flows:\n";
-    for (size_t i = 0; i < std::min(top.size(), size_t(10)); ++i) {
-        const auto& f = top[i];
-        std::cout << "  " << std::setw(15) << f.srcIPStr() << ":" << std::setw(5) << f.key.src_port
-                  << " -> " << std::setw(15) << f.dstIPStr() << ":" << std::setw(5) << f.key.dst_port
-                  << " [" << std::setw(10) << appTypeToString(f.app_type) << "] "
-                  << f.byte_count / 1024 << " KB\n";
+    if (!top.empty()) {
+        std::cout << "\n  Top Flows by Volume:\n";
+        for (size_t i = 0; i < std::min(top.size(), size_t(5)); ++i) {
+            const auto& f = top[i];
+            std::cout << "    " << std::setw(15) << f.srcIPStr() << ":" << std::setw(5) << f.key.src_port
+                      << " -> " << std::setw(15) << f.dstIPStr() << ":" << std::setw(5) << f.key.dst_port
+                      << "  [" << std::setw(10) << appTypeToString(f.app_type) << "] "
+                      << f.byte_count / 1024 << " KB";
+            if (!f.sni.empty()) std::cout << "  (" << f.sni << ")";
+            std::cout << "\n";
+        }
     }
-    std::cout << "-----------------------------------------------\n\n";
+    std::cout << "----------------------------\n\n";
 }
 
 void DpiPipeline::printSummaryJson() const {

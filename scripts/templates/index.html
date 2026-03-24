@@ -1,427 +1,637 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HIGH-PERFORMANCE NETWORK PROCESSING ENGINE</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      :root {
-          --bg: #0f172a;
-          --card-bg: #1e293b;
-          --primary: #3b82f6;
-          --secondary: #64748b;
-          --text: #f8fafc;
-          --text-dim: #94a3b8;
-          --accent: #ef4444;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NETWORK TRAFFIC ANALYSIS ENGINE</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #090e1a;
+      --surface:   #111827;
+      --card:      #1a2236;
+      --border:    rgba(255,255,255,0.07);
+      --primary:   #3b82f6;
+      --green:     #10b981;
+      --yellow:    #f59e0b;
+      --red:       #ef4444;
+      --text:      #f1f5f9;
+      --muted:     #64748b;
+      --dim:       #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
-      body {
-          background-color: var(--bg);
-          color: var(--text);
-          font-family: 'Inter', sans-serif;
-          margin: 0;
-          padding: 0;
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          overflow: hidden;
-      }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
 
-      .container {
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 1rem 2rem;
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          box-sizing: border-box;
-          overflow: hidden;
-      }
+    /* ── TOP NAV ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 2rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-brand {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--primary);
+      letter-spacing: 0.08em;
+    }
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .status-dot.live { background: var(--green); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }
 
-      header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 3rem;
-          border-bottom: 1px solid #ffffff1a;
-          padding-bottom: 1rem;
-      }
+    /* ── LAYOUT ── */
+    .page { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
 
-      h1 {
-          font-family: inherit;
-          font-size: 1.2rem;
-          font-weight: 700;
-          color: var(--primary);
-      }
+    /* ── URL PANEL ── */
+    .url-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .url-panel label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--primary);
+      white-space: nowrap;
+    }
+    .url-input {
+      flex: 1;
+      min-width: 240px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 1rem;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .url-input:focus { border-color: var(--primary); }
+    .btn {
+      padding: 0.6rem 1.4rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+    .btn-stop { background: var(--red); color: #fff; display: none; }
+    .btn-stop:hover { background: #dc2626; }
 
-      .upload-section {
-          background: var(--card-bg);
-          border-radius: 12px;
-          padding: 3rem;
-          text-align: center;
-          border: 2px dashed #ffffff22;
-          transition: all 0.3s ease;
-          margin-bottom: 2rem;
-      }
+    /* ── SECTION HEADERS ── */
+    .section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+      padding-left: 2px;
+    }
 
-      .upload-section:hover {
-          border-color: var(--primary);
-          background: #1a1b26;
-      }
+    /* ── KPI ROW ── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.1rem 1.2rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--primary);
+      border-radius: 10px 0 0 10px;
+    }
+    .kpi.green::before { background: var(--green); }
+    .kpi.yellow::before { background: var(--yellow); }
+    .kpi.red::before { background: var(--red); }
+    .kpi-label { font-size: 0.72rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+    .kpi-val { font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; font-weight: 700; }
+    .kpi-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
 
-      .btn {
-          background: var(--primary);
-          border: none;
-          color: white;
-          padding: 0.8rem 2rem;
-          border-radius: 4px;
-          font-weight: 600;
-          cursor: pointer;
-          font-size: 0.9rem;
-          transition: background 0.2s;
-      }
+    /* ── MAIN GRID ── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
 
-      .btn:hover {
-          transform: scale(1.05);
-      }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem 1.4rem;
+    }
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card-title .icon { font-size: 0.9rem; }
 
-      .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 1.5rem;
-          margin-bottom: 3rem;
-          display: none;
-      }
+    /* ── PIPELINE ── */
+    .pipeline-stage {
+      display: grid;
+      grid-template-columns: 80px 1fr 70px 70px;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
+    .pipeline-stage:last-child { border-bottom: none; }
+    .stage-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--dim);
+    }
+    .stage-bar-wrap { position: relative; height: 6px; background: #ffffff0a; border-radius: 3px; }
+    .stage-bar { height: 100%; border-radius: 3px; background: var(--primary); transition: width 0.5s ease; }
+    .stage-bar.red { background: var(--red); }
+    .stage-bar.yellow { background: var(--yellow); }
+    .stage-pkts { text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+    .stage-drop { text-align: right; font-size: 0.72rem; color: var(--muted); }
+    .stage-drop.bad { color: var(--red); }
 
-      .stat-card {
-          background: var(--card-bg);
-          padding: 1.5rem;
-          border-radius: 10px;
-          border-left: 4px solid var(--primary);
-      }
+    /* ── PROTOCOL PIE ── */
+    .proto-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.6rem;
+      font-size: 0.82rem;
+    }
+    .proto-label { width: 40px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--dim); }
+    .proto-bar-wrap { flex: 1; height: 8px; background: #ffffff0a; border-radius: 4px; }
+    .proto-bar { height: 100%; border-radius: 4px; transition: width 0.5s; }
+    .proto-bar.tcp  { background: var(--primary); }
+    .proto-bar.udp  { background: var(--green); }
+    .proto-bar.icmp { background: var(--yellow); }
+    .proto-count { width: 40px; text-align: right; font-size: 0.72rem; color: var(--dim); font-family: monospace; }
 
-      .stat-label {
-          color: var(--text-dim);
-          font-size: 0.8rem;
-          text-transform: uppercase;
-          margin-bottom: 0.5rem;
-      }
+    /* ── TOP LISTS ── */
+    .top-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
+    .top-item:last-child { border-bottom: none; }
+    .top-rank {
+      font-size: 0.65rem;
+      color: var(--muted);
+      width: 18px;
+      text-align: center;
+      font-family: monospace;
+    }
+    .top-label { flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .top-bar-wrap { width: 80px; height: 5px; background: #ffffff0a; border-radius: 3px; }
+    .top-bar { height: 100%; border-radius: 3px; background: var(--primary); transition: width 0.5s; }
+    .top-count { width: 45px; text-align: right; font-size: 0.72rem; color: var(--dim); font-family: monospace; }
 
-      .stat-value {
-          font-size: 1.5rem;
-          font-weight: 700;
-          font-family: 'Orbitron', sans-serif;
-      }
+    /* ── RULE INSIGHTS ── */
+    .rule-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.4rem 0;
+      font-size: 0.8rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .rule-item:last-child { border-bottom: none; }
+    .rule-badge {
+      font-size: 0.65rem;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--yellow);
+      color: #000;
+      font-weight: 700;
+    }
+    .rule-hits { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--red); }
 
-      .results-wrapper {
-          display: none;
-          gap: 1.5rem;
-          margin-top: 1.5rem;
-          flex: 1;
-          min-height: 0;
-      }
+    /* ── FLOW TABLE ── */
+    .flow-card { margin-bottom: 1rem; }
+    table.flow-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    table.flow-table th {
+      text-align: left;
+      padding: 0.5rem 0.6rem;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    table.flow-table td {
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+    }
+    table.flow-table tr:last-child td { border-bottom: none; }
+    .badge-green { color: var(--green); }
+    .badge-red   { color: var(--red);   }
 
-      .flow-container, .console-container {
-          flex: 1;
-          background: var(--card-bg);
-          border-radius: 10px;
-          overflow-y: auto;
-          overflow-x: hidden;
-          border: 1px solid #ffffff11;
-          min-width: 0;
-          padding-right: 5px;
-      }
+    /* ── CONSOLE LOG ── */
+    #console-log {
+      background: #000d1a;
+      border-radius: 10px;
+      padding: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: #22d3ee;
+      max-height: 180px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border);
+    }
+    .log-line { margin-bottom: 3px; border-left: 2px solid #22d3ee33; padding-left: 0.5rem; }
+    .log-time { color: var(--muted); }
 
-      .flow-table {
-          width: 100%;
-          border-collapse: collapse;
-          table-layout: auto;
-          display: none;
-      }
+    /* ── EMPTY / LOADER ── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+      gap: 0.5rem;
+    }
+    .empty-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-      .console-log {
-          background: #000c1a;
-          padding: 1rem;
-          font-family: 'monospace';
-          font-size: 0.85rem;
-          min-height: 100%;
-          color: #00ff9d;
-          display: none;
-      }
+    /* ── HIDDEN BY DEFAULT ── */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
 
-      .flow-table th {
-          text-align: left;
-          padding: 1rem 0.5rem;
-          background: #011b36;
-          color: var(--text-dim);
-          font-size: 0.8rem;
-          text-transform: uppercase;
-          position: sticky;
-          top: 0;
-          z-index: 10;
-      }
+<nav>
+  <span class="nav-brand">NETWORK TRAFFIC ANALYSIS ENGINE</span>
+  <div class="nav-status">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">IDLE</span>
+  </div>
+</nav>
 
-      .flow-table td {
-          padding: 1rem 0.5rem;
-          border-bottom: 1px solid #ffffff0a;
-          font-size: 0.85rem;
-          white-space: nowrap;
-      }
+<div class="page">
 
-      .app-badge {
-          background: #ffffff11;
-          padding: 2px 8px;
-          border-radius: 4px;
-          font-size: 0.8rem;
-          color: var(--primary);
-      }
+  <!-- URL INPUT -->
+  <div class="url-panel">
+    <label>Analyze URL</label>
+    <input class="url-input" type="text" id="url-input" placeholder="e.g. google.com or https://youtube.com" />
+    <button class="btn btn-primary" id="btn-analyze" onclick="startAnalysis()">▶ ANALYZE</button>
+    <button class="btn btn-stop"    id="btn-stop"    onclick="stopAnalysis()">■ STOP</button>
+    <div class="spinner" id="spinner"></div>
+  </div>
 
-      .loader {
-          display: none;
-          margin: 2rem auto;
-          width: 50px;
-          height: 50px;
-          border: 5px solid #ffffff11;
-          border-top: 5px solid var(--primary);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-      }
+  <!-- KPI ROW -->
+  <div class="section-title">Throughput &amp; Performance</div>
+  <div class="kpi-row" id="kpi-row">
+    <div class="kpi" id="kpi-pps">
+      <div class="kpi-label">Packets / sec</div>
+      <div class="kpi-val">—</div>
+      <div class="kpi-sub">Throughput</div>
+    </div>
+    <div class="kpi green" id="kpi-mbs">
+      <div class="kpi-label">MB / sec</div>
+      <div class="kpi-val">—</div>
+      <div class="kpi-sub">Bandwidth</div>
+    </div>
+    <div class="kpi yellow" id="kpi-lat">
+      <div class="kpi-label">Avg Latency</div>
+      <div class="kpi-val">—</div>
+      <div class="kpi-sub">µs / pkt</div>
+    </div>
+    <div class="kpi" id="kpi-total">
+      <div class="kpi-label">Total Pkts</div>
+      <div class="kpi-val">—</div>
+      <div class="kpi-sub">Processed</div>
+    </div>
+    <div class="kpi red" id="kpi-blocked">
+      <div class="kpi-label">Blocked</div>
+      <div class="kpi-val">—</div>
+      <div class="kpi-sub">Rule matches</div>
+    </div>
+    <div class="kpi" id="kpi-dropped">
+      <div class="kpi-label">Dropped</div>
+      <div class="kpi-val">—</div>
+      <div class="kpi-sub">Queue overflow</div>
+    </div>
+  </div>
 
-      .console-entry {
-          margin-bottom: 0.3rem;
-          border-left: 2px solid #00ff9d33;
-          padding-left: 0.5rem;
-      }
+  <!-- MAIN 2-COL GRID -->
+  <div class="main-grid">
 
-      @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <header>
-        <h1>DPI Engine - Network Analyzer</h1>
-      </header>
-
-      <div class="upload-section" id="url-zone">
-        <h2 style="margin-top: 0">Active Domain Profiler</h2>
-        <p style="color: var(--text-dim)">
-          Enter a website URL to simulate and analyze traffic
-        </p>
-        <div
-          style="
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 1rem;
-          "
-        >
-          <input
-            type="text"
-            id="url-input"
-            placeholder="   "
-            style="
-              padding: 0.8rem;
-              width: 300px;
-              border-radius: 6px;
-              border: 1px solid #ffffff22;
-              background: #1a1b26;
-              color: white;
-              font-family: &quot;Inter&quot;, sans-serif;
-            "
-          />
-          <button class="btn" id="analyze-btn" onclick="startAnalysis()">
-            ANALYZE
-          </button>
-          <button
-            class="btn"
-            id="stop-btn"
-            onclick="stopAnalysis()"
-            style="
-              display: none;
-              background: linear-gradient(45deg, var(--accent), #ff5252);
-            "
-          >
-            STOP
-          </button>
-        </div>
-      </div>
-
-      <div class="loader" id="loader"></div>
-
-      <div class="stats-grid" id="stats-grid">
-        <div class="stat-card">
-          <div class="stat-label">Total Packets</div>
-          <div class="stat-value" id="stat-pkts">0</div>
-        </div>
-        <div class="stat-card" style="border-left-color: var(--secondary)">
-          <div class="stat-label">Throughput</div>
-          <div class="stat-value" id="stat-pps">0 pps</div>
-        </div>
-        <div class="stat-card" style="border-left-color: var(--accent)">
-          <div class="stat-label">Avg Latency</div>
-          <div class="stat-value" id="stat-latency">0 ms</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Blocked</div>
-          <div class="stat-value" id="stat-blocked">0</div>
-        </div>
-      </div>
-
-      <div class="results-wrapper" id="results-wrapper">
-        <div class="flow-container">
-          <table class="flow-table" id="flow-table">
-            <thead>
-              <tr>
-                <th>Source</th>
-                <th>Destination</th>
-                <th>App</th>
-                <th>Size</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="flow-body">
-              <!-- Rows injected here -->
-            </tbody>
-          </table>
-        </div>
-
-        <div class="console-container">
-          <div class="console-log" id="live-console">
-            <!-- Console items here -->
-          </div>
-        </div>
+    <!-- Pipeline Health -->
+    <div class="card">
+      <div class="card-title"><span class="icon">⚡</span> Pipeline Health</div>
+      <div id="pipeline-body">
+        <div class="empty-state"><div class="empty-icon">🔄</div>Awaiting analysis…</div>
       </div>
     </div>
 
-    <script>
-      const urlZone = document.getElementById("url-zone");
-      const loader = document.getElementById("loader");
-      const statsGrid = document.getElementById("stats-grid");
-      const flowTable = document.getElementById("flow-table");
-      const liveConsole = document.getElementById("live-console");
-      const flowBody = document.getElementById("flow-body");
-      const resultsWrapper = document.getElementById("results-wrapper");
+    <!-- Protocol Distribution -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📡</span> Protocol Distribution</div>
+      <div id="proto-body">
+        <div class="empty-state"><div class="empty-icon">📊</div>Awaiting analysis…</div>
+      </div>
+    </div>
 
-      function resetUI() {
-        resultsWrapper.style.display = "none";
-        statsGrid.style.display = "none";
-        flowTable.style.display = "none";
-        liveConsole.innerHTML = "";
-        liveConsole.style.display = "none";
-        flowBody.innerHTML = "";
-      }
+    <!-- Top Domains -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🌐</span> Top Observed Domains (SNI)</div>
+      <div id="domains-body">
+        <div class="empty-state"><div class="empty-icon">🔍</div>Awaiting analysis…</div>
+      </div>
+    </div>
 
-      let analysisInterval = null;
-      let isAnalyzing = false;
+    <!-- Top IPs -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🖧</span> Top Source / Destination IPs</div>
+      <div id="ips-body">
+        <div class="empty-state"><div class="empty-icon">🔍</div>Awaiting analysis…</div>
+      </div>
+    </div>
 
-      function startAnalysis() {
-        const url = document.getElementById("url-input").value.trim();
-        if (!url) return;
+    <!-- Rule Engine Insights -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🛡</span> Rule Engine Insights</div>
+      <div id="rules-body">
+        <div class="empty-state"><div class="empty-icon">✅</div>No rule matches yet</div>
+      </div>
+    </div>
 
-        isAnalyzing = true;
-        document.getElementById("analyze-btn").style.display = "none";
-        document.getElementById("stop-btn").style.display = "block";
-        document.getElementById("url-input").disabled = true;
+    <!-- Backpressure Indicator -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📈</span> System Health / Backpressure</div>
+      <div id="backpressure-body">
+        <div class="empty-state"><div class="empty-icon">🟢</div>Awaiting analysis…</div>
+      </div>
+    </div>
 
-        resetUI();
-        loader.style.display = "block";
+  </div>
 
-        analyzeURL(url);
-        analysisInterval = setInterval(() => {
-          analyzeURL(url);
-        }, 2000);
-      }
+  <!-- Flow Table -->
+  <div class="section-title">Active Flows</div>
+  <div class="card flow-card">
+    <div id="flow-wrap">
+      <div class="empty-state"><div class="empty-icon">📋</div>No flows captured yet</div>
+    </div>
+  </div>
 
-      function stopAnalysis() {
-        isAnalyzing = false;
-        clearInterval(analysisInterval);
+  <!-- Console Log -->
+  <div class="section-title">Live Log</div>
+  <div id="console-log"><span style="color:var(--muted);">&gt; Engine offline. Enter a URL above to begin.</span></div>
 
-        document.getElementById("analyze-btn").style.display = "block";
-        document.getElementById("stop-btn").style.display = "none";
-        document.getElementById("url-input").disabled = false;
+</div><!-- /page -->
 
-        loader.style.display = "none";
-        urlZone.querySelector("h2").innerText = "Monitoring Stopped";
-      }
+<script>
+  let interval = null;
+  let live     = false;
 
-      async function analyzeURL(url) {
-        try {
-          const response = await fetch("/analyze_url", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: url }),
-          });
+  const $  = id => document.getElementById(id);
+  const kv = (id, val, sub) => {
+    const el = $(id);
+    el.querySelector('.kpi-val').textContent = val;
+    if (sub !== undefined) el.querySelector('.kpi-sub').textContent = sub;
+  };
 
-          const data = await response.json();
-          if (!isAnalyzing) return;
+  function setStatus(text, isLive) {
+    $('status-text').textContent = text;
+    $('status-dot').className = 'status-dot' + (isLive ? ' live' : '');
+  }
 
-          if (data.error) {
-            stopAnalysis();
-            alert(data.error);
-            return;
-          }
-          updateUI(data, `Monitoring: ${data.simulated_domain}`);
-        } catch (err) {
-          if (!isAnalyzing) return;
-          console.error(err);
-          stopAnalysis();
-          alert("Site profiling failed. See console for details.");
-        } finally {
-          if (isAnalyzing && statsGrid.style.display !== "none") {
-            // Hide loader once the first data batch arrives
-            loader.style.display = "none";
-          }
-        }
-      }
+  function log(msg, color) {
+    const t = new Date().toLocaleTimeString();
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML = `<span class="log-time">[${t}]</span> <span style="color:${color||'#22d3ee'}">${msg}</span>`;
+    $('console-log').prepend(line);
+  }
 
-      function updateUI(data, title) {
-        // Update Stats
-        document.getElementById("stat-pkts").innerText =
-          data.stats.total_packets.toLocaleString();
-        document.getElementById("stat-pps").innerText =
-          Math.round(data.stats.pps).toLocaleString() + " PPS";
-        document.getElementById("stat-latency").innerText =
-          data.stats.latency_ms.toFixed(3) + " ms";
-        document.getElementById("stat-blocked").innerText = data.stats.blocked;
+  function startAnalysis() {
+    const url = $('url-input').value.trim();
+    if (!url) { $('url-input').focus(); return; }
 
-        // Update Flows (ACCUMULATE)
-        data.flows.forEach((f) => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
-                        <td>${f.src}:${f.sp}</td>
-                        <td>${f.dst}:${f.dp}</td>
-                        <td><span class="app-badge">${f.app}</span></td>
-                        <td>${(f.bytes / 1024).toFixed(1)}</td>
-                        <td style="color: ${f.blocked ? "#f43f5e" : "#00e5ff"}">
-                            ${f.blocked ? "BLOCKED" : "FORWARDED"}
-                        </td>
-                `;
-          flowBody.prepend(row); // Newest on top
-        });
+    live = true;
+    $('btn-analyze').style.display = 'none';
+    $('btn-stop').style.display = 'block';
+    $('spinner').style.display = 'block';
+    $('url-input').disabled = true;
+    setStatus('CAPTURING', true);
+    log(`Starting analysis → ${url}`, '#3b82f6');
 
-        resultsWrapper.style.display = "flex";
-        statsGrid.style.display = "grid";
-        flowTable.style.display = "table";
-        liveConsole.style.display = "block";
+    runOnce(url);
+    interval = setInterval(() => runOnce(url), 3000);
+  }
 
-        // Add to Console Log
-        const time = new Date().toLocaleTimeString();
-        const logEntry = document.createElement("div");
-        logEntry.className = "console-entry";
-        logEntry.innerHTML = `[${time}] <span style="color: var(--primary)">LIVE</span> | PPS: ${Math.round(data.stats.pps)} | Latency: ${data.stats.latency_ms.toFixed(3)}ms | Blocks: ${data.stats.blocked}`;
-        liveConsole.prepend(logEntry);
+  function stopAnalysis() {
+    live = false;
+    clearInterval(interval);
+    $('btn-analyze').style.display = 'block';
+    $('btn-stop').style.display = 'none';
+    $('spinner').style.display = 'none';
+    $('url-input').disabled = false;
+    setStatus('STOPPED', false);
+    log('Analysis stopped.', '#ef4444');
+  }
 
-        urlZone.style.padding = "1rem";
-        urlZone.querySelector("h2").innerText = title;
-      }
-    </script>
-  </body>
+  async function runOnce(url) {
+    try {
+      const res  = await fetch('/analyze_url', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({url})
+      });
+      const data = await res.json();
+      if (!live) return;
+      if (data.error) { stopAnalysis(); log('ERROR: ' + data.error, '#ef4444'); return; }
+      $('spinner').style.display = 'none';
+      render(data);
+    } catch(e) {
+      if (!live) return;
+      log('Fetch error: ' + e.message, '#ef4444');
+    }
+  }
+
+  function bar(pct, cls) {
+    return `<div class="stage-bar-wrap"><div class="stage-bar ${cls||''}" style="width:${Math.min(100,pct)}%"></div></div>`;
+  }
+
+  function render(d) {
+    const t = d.totals;
+
+    // KPIs
+    kv('kpi-pps',     d.throughput.pps.toLocaleString(), 'pps');
+    kv('kpi-mbs',     d.throughput.mb_s.toFixed(2) + ' MB/s', 'Bandwidth');
+    kv('kpi-lat',     d.throughput.latency_us.toFixed(1) + ' µs', 'per packet');
+    kv('kpi-total',   t.total.toLocaleString(), 'processed');
+    kv('kpi-blocked', t.blocked.toLocaleString(), 'rule matches');
+    kv('kpi-dropped', t.dropped.toLocaleString(), 'queue overflow');
+
+    // Pipeline
+    const maxPkts = Math.max(...d.pipeline.map(s => s.packets), 1);
+    $('pipeline-body').innerHTML = d.pipeline.map(s => {
+      const pct = (s.packets / maxPkts) * 100;
+      const cls = s.drop_rate > 5 ? 'red' : s.drop_rate > 1 ? 'yellow' : '';
+      const dropCls = s.drop_rate > 1 ? 'bad' : '';
+      return `<div class="pipeline-stage">
+        <span class="stage-name">[${s.stage}]</span>
+        ${bar(pct, cls)}
+        <span class="stage-pkts">${s.packets.toLocaleString()}</span>
+        <span class="stage-drop ${dropCls}">${s.drop_rate > 0 ? s.drop_rate.toFixed(1)+'%' : '—'}</span>
+      </div>`;
+    }).join('');
+
+    // Protocol
+    const proto = d.protocol;
+    const total = (proto.tcp + proto.udp + proto.icmp) || 1;
+    $('proto-body').innerHTML = [
+      {name:'TCP',  val:proto.tcp,  cls:'tcp'},
+      {name:'UDP',  val:proto.udp,  cls:'udp'},
+      {name:'ICMP', val:proto.icmp, cls:'icmp'},
+    ].map(p => `<div class="proto-row">
+      <span class="proto-label">${p.name}</span>
+      <div class="proto-bar-wrap"><div class="proto-bar ${p.cls}" style="width:${(p.val/total*100).toFixed(1)}%"></div></div>
+      <span class="proto-count">${p.val}</span>
+    </div>`).join('');
+
+    // Top Domains
+    const maxD = Math.max(...(d.top_domains||[]).map(x => x.packets), 1);
+    $('domains-body').innerHTML = d.top_domains && d.top_domains.length
+      ? d.top_domains.slice(0,8).map((item, i) => `<div class="top-item">
+          <span class="top-rank">#${i+1}</span>
+          <span class="top-label" title="${item.domain}">${item.domain}</span>
+          <div class="top-bar-wrap"><div class="top-bar" style="width:${(item.packets/maxD*100).toFixed(0)}%"></div></div>
+          <span class="top-count">${item.packets}</span>
+        </div>`).join('')
+      : '<div class="empty-state"><div class="empty-icon">🔍</div>No SNI data</div>';
+
+    // Top IPs
+    const allIPs = [...(d.top_src_ips||[]).map(x=>({...x,type:'SRC'})), ...(d.top_dst_ips||[]).map(x=>({...x,type:'DST'}))];
+    const maxIP  = Math.max(...allIPs.map(x => x.packets), 1);
+    $('ips-body').innerHTML = allIPs.slice(0,8).map((item, i) => `<div class="top-item">
+        <span class="top-rank">${item.type}</span>
+        <span class="top-label" title="${item.ip}">${item.ip}</span>
+        <div class="top-bar-wrap"><div class="top-bar" style="width:${(item.packets/maxIP*100).toFixed(0)}%;background:${item.type==='SRC'?'var(--green)':'var(--yellow)'}"></div></div>
+        <span class="top-count">${item.packets}</span>
+      </div>`).join('') || '<div class="empty-state">No IP data</div>';
+
+    // Rule Engine
+    $('rules-body').innerHTML = d.rule_matches && d.rule_matches.length
+      ? `<div style="margin-bottom:0.6rem;font-size:0.78rem;color:var(--muted)">Total matches: <b style="color:var(--red)">${d.rule_matches.reduce((a,r)=>a+r.hits,0)}</b></div>` +
+        d.rule_matches.map(r => `<div class="rule-item">
+          <span class="top-label">${r.rule}</span>
+          <span class="rule-badge">${r.type.toUpperCase()}</span>
+          <span class="rule-hits">${r.hits} hits</span>
+        </div>`).join('')
+      : '<div class="empty-state"><div class="empty-icon">✅</div>No rules triggered</div>';
+
+    // Backpressure
+    const dropPct = (t.dropped / Math.max(t.total, 1)) * 100;
+    const bpColor = dropPct > 5 ? 'var(--red)' : dropPct > 1 ? 'var(--yellow)' : 'var(--green)';
+    const bpStatus = dropPct > 5 ? '⚠ HIGH BACKPRESSURE' : dropPct > 1 ? '⚡ MILD PRESSURE' : '✅ HEALTHY';
+    $('backpressure-body').innerHTML = `
+      <div style="margin-bottom:0.8rem;font-size:1.1rem;font-weight:700;color:${bpColor}">${bpStatus}</div>
+      <div style="font-size:0.8rem;color:var(--dim);margin-bottom:0.4rem">Queue drop rate: <b style="color:${bpColor}">${dropPct.toFixed(2)}%</b></div>
+      <div style="font-size:0.8rem;color:var(--dim);margin-bottom:0.4rem">Bottleneck stage: <b style="color:var(--yellow)">${getBottleneck(d.pipeline)}</b></div>
+      <div style="font-size:0.8rem;color:var(--dim)">Forwarded: <b style="color:var(--green)">${t.forwarded}</b> / Blocked: <b style="color:var(--red)">${t.blocked}</b> / Dropped: <b style="color:var(--muted)">${t.dropped}</b></div>
+    `;
+
+    // Flow Table
+    $('flow-wrap').innerHTML = d.flows && d.flows.length ? `
+      <table class="flow-table">
+        <thead><tr>
+          <th>Source</th><th>Destination</th><th>Domain</th><th>Proto</th><th>Bytes</th><th>Status</th>
+        </tr></thead>
+        <tbody>${d.flows.map(f => `<tr>
+          <td>${f.src}:${f.sp}</td>
+          <td>${f.dst}:${f.dp}</td>
+          <td>${f.domain || '—'}</td>
+          <td>${f.proto}</td>
+          <td>${(f.bytes/1024).toFixed(1)} KB</td>
+          <td class="${f.blocked ? 'badge-red' : 'badge-green'}">${f.blocked ? 'BLOCKED' : 'FORWARDED'}</td>
+        </tr>`).join('')}</tbody>
+      </table>` : '<div class="empty-state">No flows captured</div>';
+
+    // Log
+    log(`PPS: ${d.throughput.pps.toLocaleString()} | Latency: ${d.throughput.latency_us}µs | Blocked: ${t.blocked} | Dropped: ${t.dropped}`, '#22d3ee');
+    setStatus(`LIVE — ${d.domain}`, true);
+  }
+
+  function getBottleneck(pipeline) {
+    if (!pipeline || !pipeline.length) return 'Unknown';
+    return pipeline.reduce((a, b) => b.drop_rate > a.drop_rate ? b : a, pipeline[0]).stage;
+  }
+</script>
+
+</body>
 </html>

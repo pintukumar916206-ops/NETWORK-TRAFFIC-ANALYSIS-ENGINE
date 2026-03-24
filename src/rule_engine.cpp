@@ -1,5 +1,6 @@
 #include "rule_engine.h"
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <algorithm>
@@ -98,4 +99,71 @@ void RuleEngine::printRules() const {
         std::cout << "  [RULE] Block app:  " << appTypeToString(static_cast<AppType>(a)) << "\n";
     }
     if (domain_matcher_.empty()) return;
+}
+
+// Manual JSON rule file loader.
+// Looks for patterns like: "type": "domain", "value": "facebook.com"
+// No external dependencies required.
+int RuleEngine::loadFromFile(const std::string& path) {
+    std::ifstream f(path);
+    if (!f.is_open()) {
+        std::cerr << "[RULES] Cannot open rule file: " << path << "\n";
+        return -1;
+    }
+
+    std::string content((std::istreambuf_iterator<char>(f)),
+                         std::istreambuf_iterator<char>());
+
+    // A simple field extractor: finds the value of a JSON key in a block of text.
+    auto extractField = [&](const std::string& text, const std::string& key) -> std::string {
+        std::string search = "\"" + key + "\"";
+        size_t pos = text.find(search);
+        if (pos == std::string::npos) return "";
+        pos = text.find(':', pos);
+        if (pos == std::string::npos) return "";
+        ++pos;
+        while (pos < text.size() && (text[pos] == ' ' || text[pos] == '\t')) ++pos;
+        if (pos >= text.size() || text[pos] != '"') return "";
+        ++pos;
+        size_t end = text.find('"', pos);
+        if (end == std::string::npos) return "";
+        return text.substr(pos, end - pos);
+    };
+
+    int count = 0;
+    size_t pos = 0;
+    // Scan each {...} block inside the "rules" array.
+    while (pos < content.size()) {
+        size_t block_start = content.find('{', pos + 1);
+        if (block_start == std::string::npos) break;
+        size_t block_end = content.find('}', block_start);
+        if (block_end == std::string::npos) break;
+        std::string block = content.substr(block_start, block_end - block_start + 1);
+        pos = block_end;
+
+        std::string type  = extractField(block, "type");
+        std::string value = extractField(block, "value");
+        if (type.empty() || value.empty()) continue;
+
+        if (type == "domain") {
+            addBlockDomain(value);
+        } else if (type == "ip") {
+            addBlockIP(value);
+        } else if (type == "port") {
+            try { addBlockPort(static_cast<uint16_t>(std::stoi(value))); }
+            catch (...) { std::cerr << "[RULES] Invalid port: " << value << "\n"; continue; }
+        } else if (type == "app") {
+            if (value == "youtube")   addBlockApp(AppType::YOUTUBE);
+            else if (value == "facebook")  addBlockApp(AppType::FACEBOOK);
+            else if (value == "netflix")   addBlockApp(AppType::NETFLIX);
+            else if (value == "bittorrent") addBlockApp(AppType::BITTORRENT);
+        } else {
+            std::cerr << "[RULES] Unknown rule type: " << type << "\n";
+            continue;
+        }
+        ++count;
+    }
+
+    std::cout << "[RULES] Loaded " << count << " rules from " << path << "\n";
+    return count;
 }

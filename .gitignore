@@ -1,68 +1,83 @@
-# Build Directories
-build/
-bin/
-lib/
-out/
-dist/
+# Prerequisites
+*.d
 
-# CMake Artifacts
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-CPackConfig.cmake
-CPackSourceConfig.cmake
-_CPack_Packages/
-install_manifest.txt
-compile_commands.json
-
-# Compiler/Language Patterns
+# Object files
 *.o
+*.ko
 *.obj
+*.elf
+
+# Linker output
 *.ilk
-*.pdb
+*.map
 *.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
 *.lib
 *.a
-*.so
-*.dll
-*.exe
-*.d
-*.gcno
-*.gcda
-*.gcov
+*.la
+*.lo
 
-# IDE/Project Files
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.pdb
+*.idb
+*.ilk
+*.exp
+
+# Build directories
+build/
+bin/
+out/
+dist/
+dist-*/
+*.log
+
+# IDEs
 .vscode/
-.idea/
+.vs/
+.history/
+.pcap/
 *.user
 *.suo
 *.sln
 *.vcxproj
 *.filters
-*.swp
-*.swo
-.vs/
-*.DS_Store
+
+# OS Metadata
+.DS_Store
 Thumbs.db
 
-# Project Specific
-.cache/
-*.log
-*.tmp
-temp/
-tests/test_output/
-uploads/
+# Project-specific
+rules.json.bak
 synthetic_*.pcap
+uploads/
+results/
+tests/test_output/
 
-# Python Patterns
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-.venv/
 venv/
-ENV/
-env/
+.venv/
 .env
 .pytest_cache/
 .mypy_cache/

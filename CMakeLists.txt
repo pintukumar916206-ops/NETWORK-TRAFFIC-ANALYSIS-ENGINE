@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(NetworkProcessingEngine LANGUAGES CXX)
+project(NETWORK_TRAFFIC_ANALYSIS_ENGINE LANGUAGES CXX)
 
 # Use C++14 because GCC 6.3.0 has better support for it than C++17
 set(CMAKE_CXX_STANDARD 14)
@@ -46,8 +46,8 @@ set(SOURCES
 )
 
 # Main Executable
-add_executable(high_performance_engine src/main.cpp ${SOURCES})
-target_link_libraries(high_performance_engine PRIVATE Threads::Threads)
+add_executable(traffic_engine src/main.cpp ${SOURCES})
+target_link_libraries(traffic_engine PRIVATE Threads::Threads)
 
 # Internal Test Suite
 add_executable(test_runner tests/test_runner.cpp ${SOURCES})

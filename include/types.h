@@ -25,7 +25,7 @@ namespace proto {
     constexpr uint16_t PORT_HTTPS =   443;
     constexpr uint16_t PORT_SMTPS =   587;
 }
-// Core data structures for the DPI engine.
+// Core data structures for the NETWORK TRAFFIC ANALYSIS ENGINE.
 namespace tcp_flags {
     constexpr uint8_t FIN = 0x01;
     constexpr uint8_t SYN = 0x02;
@@ -278,6 +278,14 @@ struct Stats {
     double avgLatencyMs() const noexcept {
         uint64_t p = total_packets.load();
         return p > 0 ? double(total_latency_ns.load()) / double(p) / 1e6 : 0.0;
+    }
+    double avgLatencyUs() const noexcept {
+        uint64_t p = total_packets.load();
+        return p > 0 ? double(total_latency_ns.load()) / double(p) / 1e3 : 0.0;
+    }
+    double throughputMBps() const noexcept {
+        double t = elapsedSec();
+        return t > 0 ? double(total_bytes.load()) / t / (1024.0 * 1024.0) : 0.0;
     }
     double dropRatePct() const noexcept {
         uint64_t t = total_packets.load();
