@@ -67,7 +67,8 @@ Thumbs.db
 
 # Project-specific
 rules.json.bak
-synthetic_*.pcap
+*.pcap
+fix_dpi.txt
 uploads/
 results/
 tests/test_output/

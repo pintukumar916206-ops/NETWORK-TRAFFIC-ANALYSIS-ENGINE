@@ -34,11 +34,7 @@ if not ANALYZER_BIN:
 
 
 def parse_engine_output(stdout, stderr, domain, elapsed):
-    """
-    Parse the plain-text engine output into a structured dict.
-    Falls back to synthesized plausible values if the engine output
-    does not contain parseable numbers (e.g. tiny test PCAPs).
-    """
+    # Extracts stats from engine output, falling back to plausible defaults for small tests
     output = stdout + stderr
 
     def extract(label, default=0):
@@ -53,6 +49,11 @@ def parse_engine_output(stdout, stderr, domain, elapsed):
                         pass
         return default
 
+    # The engine processes packets through a pipeline like this:
+    # [Reader] -> [Worker Queues] -> [DPI Engine] -> [Output]
+    #                  |
+    #            [Flow Tracking]
+    #            [Rule Matching]
     total_pkts  = int(extract("pkts read",   5))
     parsed      = int(extract("parsed",       total_pkts))
     malformed   = int(extract("malformed",    0))

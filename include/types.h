@@ -80,7 +80,7 @@ struct alignas(64) RawPacket {
     void*    _pool_ref = nullptr; 
 
     // Helper for easier transition
-    bool empty() const noexcept { return data == nullptr || len == 0; }
+    bool empty() const noexcept { return data == nullptr; }
     size_t size() const noexcept { return static_cast<size_t>(len); }
 };
  

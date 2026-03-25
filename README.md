@@ -6,13 +6,10 @@ A multi-threaded packet inspection engine written in C++14. Reads PCAP files, cl
 
 ## Architecture
 
-```
-[PCAP Reader] ──→ [Bounded Queue per Worker] ──→ [Worker: Parse → DPI → Rules] ──→ [Output / Summary]
-                                                         │
-                                                   [Flow Tracker]
-                                                   [SNI Extractor]
-                                                   [Rule Engine]
-```
+[PCAP Input] -> [Round-Robin Buffer] -> [Worker Threads] -> [Results]
+                         |
+                   [Protocol Parser]
+                   [LPM/Aho Rule Check]
 
 - Reader hashes each packet by 5-tuple and delivers it to the corresponding worker queue. This eliminates inter-worker coordination for most packets.
 - Each worker runs parse → classify → rule check sequentially on a single packet at a time. No shared mutable state on the hot path.
