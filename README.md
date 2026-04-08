@@ -167,5 +167,3 @@ Dashboard: **http://localhost:5000**
 
 ---
 
-## Maintenance Note
-The codebase has been refactored and "polished" to ensure higher performance and a professional, human-readable appearance. All unnecessary temporary files and redundant comments have been removed to focus on core engineering principles.
