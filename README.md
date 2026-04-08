@@ -51,12 +51,12 @@ Scaling efficiency from 1 → 4 threads: **~79%**. Diminishing returns beyond 4 
    ```powershell
    .\build\traffic_engine.exe --input test_dpi.pcap --stats
    ```
-4. **Open a second terminal tab** and launch the dashboard:
+4. **Launch the dashboard**:
    ```powershell
-   pip install flask
+   pip install flask scapy
    python scripts/dashboard.py
    ```
-5. Open **http://localhost:5000** in your browser.
+   *Note: The dashboard will automatically open in your default browser.*
 
 ---
 
@@ -164,3 +164,8 @@ docker run -p 5000:5000 traffic-engine
 ```
 
 Dashboard: **http://localhost:5000**
+
+---
+
+## Maintenance Note
+The codebase has been refactored and "polished" to ensure higher performance and a professional, human-readable appearance. All unnecessary temporary files and redundant comments have been removed to focus on core engineering principles.
