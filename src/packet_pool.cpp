@@ -2,6 +2,9 @@
 #include <cstdlib>
 #include "utils/logger.h"
 
+constexpr uint32_t PacketPool::POOL_SIZE;
+constexpr size_t   PacketPool::PACKET_MAX_LEN;
+
 PacketPool::PacketPool() {
     size_t total = size_t(POOL_SIZE) * PACKET_MAX_LEN;
     slab_ = static_cast<uint8_t*>(malloc(total));
