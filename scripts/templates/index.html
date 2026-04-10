@@ -522,6 +522,11 @@
     }
   }
 
+  function esc(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   function bar(pct, cls) {
     return `<div class="stage-bar-wrap"><div class="stage-bar ${cls||''}" style="width:${Math.min(100,pct)}%"></div></div>`;
   }
@@ -544,7 +549,7 @@
       const cls = s.drop_rate > 5 ? 'red' : s.drop_rate > 1 ? 'yellow' : '';
       const dropCls = s.drop_rate > 1 ? 'bad' : '';
       return `<div class="pipeline-stage">
-        <span class="stage-name">[${s.stage}]</span>
+        <span class="stage-name">[${esc(s.stage)}]</span>
         ${bar(pct, cls)}
         <span class="stage-pkts">${s.packets.toLocaleString()}</span>
         <span class="stage-drop ${dropCls}">${s.drop_rate > 0 ? s.drop_rate.toFixed(1)+'%' : '—'}</span>
@@ -559,7 +564,7 @@
       {name:'UDP',  val:proto.udp,  cls:'udp'},
       {name:'ICMP', val:proto.icmp, cls:'icmp'},
     ].map(p => `<div class="proto-row">
-      <span class="proto-label">${p.name}</span>
+      <span class="proto-label">${esc(p.name)}</span>
       <div class="proto-bar-wrap"><div class="proto-bar ${p.cls}" style="width:${(p.val/total*100).toFixed(1)}%"></div></div>
       <span class="proto-count">${p.val}</span>
     </div>`).join('');
@@ -569,7 +574,7 @@
     $('domains-body').innerHTML = d.top_domains && d.top_domains.length
       ? d.top_domains.slice(0,8).map((item, i) => `<div class="top-item">
           <span class="top-rank">#${i+1}</span>
-          <span class="top-label" title="${item.domain}">${item.domain}</span>
+          <span class="top-label" title="${esc(item.domain)}">${esc(item.domain)}</span>
           <div class="top-bar-wrap"><div class="top-bar" style="width:${(item.packets/maxD*100).toFixed(0)}%"></div></div>
           <span class="top-count">${item.packets}</span>
         </div>`).join('')
@@ -579,8 +584,8 @@
     const allIPs = [...(d.top_src_ips||[]).map(x=>({...x,type:'SRC'})), ...(d.top_dst_ips||[]).map(x=>({...x,type:'DST'}))];
     const maxIP  = Math.max(...allIPs.map(x => x.packets), 1);
     $('ips-body').innerHTML = allIPs.slice(0,8).map((item, i) => `<div class="top-item">
-        <span class="top-rank">${item.type}</span>
-        <span class="top-label" title="${item.ip}">${item.ip}</span>
+        <span class="top-rank">${esc(item.type)}</span>
+        <span class="top-label" title="${esc(item.ip)}">${esc(item.ip)}</span>
         <div class="top-bar-wrap"><div class="top-bar" style="width:${(item.packets/maxIP*100).toFixed(0)}%;background:${item.type==='SRC'?'var(--green)':'var(--yellow)'}"></div></div>
         <span class="top-count">${item.packets}</span>
       </div>`).join('') || '<div class="empty-state">No IP data</div>';
@@ -589,8 +594,8 @@
     $('rules-body').innerHTML = d.rule_matches && d.rule_matches.length
       ? `<div style="margin-bottom:0.6rem;font-size:0.78rem;color:var(--muted)">Total matches: <b style="color:var(--red)">${d.rule_matches.reduce((a,r)=>a+r.hits,0)}</b></div>` +
         d.rule_matches.map(r => `<div class="rule-item">
-          <span class="top-label">${r.rule}</span>
-          <span class="rule-badge">${r.type.toUpperCase()}</span>
+          <span class="top-label">${esc(r.rule)}</span>
+          <span class="rule-badge">${esc(r.type.toUpperCase())}</span>
           <span class="rule-hits">${r.hits} hits</span>
         </div>`).join('')
       : '<div class="empty-state"><div class="empty-icon">✅</div>No rules triggered</div>';
@@ -602,7 +607,7 @@
     $('backpressure-body').innerHTML = `
       <div style="margin-bottom:0.8rem;font-size:1.1rem;font-weight:700;color:${bpColor}">${bpStatus}</div>
       <div style="font-size:0.8rem;color:var(--dim);margin-bottom:0.4rem">Queue drop rate: <b style="color:${bpColor}">${dropPct.toFixed(2)}%</b></div>
-      <div style="font-size:0.8rem;color:var(--dim);margin-bottom:0.4rem">Bottleneck stage: <b style="color:var(--yellow)">${getBottleneck(d.pipeline)}</b></div>
+      <div style="font-size:0.8rem;color:var(--dim);margin-bottom:0.4rem">Bottleneck stage: <b style="color:var(--yellow)">${esc(getBottleneck(d.pipeline))}</b></div>
       <div style="font-size:0.8rem;color:var(--dim)">Forwarded: <b style="color:var(--green)">${t.forwarded}</b> / Blocked: <b style="color:var(--red)">${t.blocked}</b> / Dropped: <b style="color:var(--muted)">${t.dropped}</b></div>
     `;
 
@@ -613,10 +618,10 @@
           <th>Source</th><th>Destination</th><th>Domain</th><th>Proto</th><th>Bytes</th><th>Status</th>
         </tr></thead>
         <tbody>${d.flows.map(f => `<tr>
-          <td>${f.src}:${f.sp}</td>
-          <td>${f.dst}:${f.dp}</td>
-          <td>${f.domain || '—'}</td>
-          <td>${f.proto}</td>
+          <td>${esc(f.src)}:${f.sp}</td>
+          <td>${esc(f.dst)}:${f.dp}</td>
+          <td>${esc(f.domain) || '—'}</td>
+          <td>${esc(f.proto)}</td>
           <td>${(f.bytes/1024).toFixed(1)} KB</td>
           <td class="${f.blocked ? 'badge-red' : 'badge-green'}">${f.blocked ? 'BLOCKED' : 'FORWARDED'}</td>
         </tr>`).join('')}</tbody>
@@ -624,7 +629,7 @@
 
     // Log
     log(`PPS: ${d.throughput.pps.toLocaleString()} | Latency: ${d.throughput.latency_us}µs | Blocked: ${t.blocked} | Dropped: ${t.dropped}`, '#22d3ee');
-    setStatus(`LIVE — ${d.domain}`, true);
+    setStatus(`LIVE — ${esc(d.domain)}`, true);
   }
 
   function getBottleneck(pipeline) {

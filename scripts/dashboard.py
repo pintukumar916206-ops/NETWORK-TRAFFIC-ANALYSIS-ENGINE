@@ -3,7 +3,10 @@ import subprocess
 import socket
 import uuid
 import time
+import contextlib
 from flask import Flask, request, render_template, jsonify
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 try:
     from scapy.all import IP, TCP, Ether, wrpcap, Raw
@@ -14,7 +17,15 @@ except ImportError:
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "uploads"
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024  # Reduced to 2MB for safety
+
+# Rate Limiter setup
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["100 per hour"],
+    storage_uri="memory://",
+)
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
@@ -47,10 +58,8 @@ def parse_engine_output(stdout, stderr, domain, elapsed):
 
                 nums = re.findall(r"[\d]+(?:\.\d+)?", line)
                 if nums:
-                    try:
+                    with contextlib.suppress(ValueError):
                         return float(nums[0])
-                    except ValueError:
-                        pass
         return default
 
     # The engine processes packets through a pipeline like this:
@@ -119,7 +128,7 @@ def parse_engine_output(stdout, stderr, domain, elapsed):
     if not top_domains and domain:
         top_domains = [
             {"domain": domain, "packets": max(4, total_pkts - 1)},
-            {"domain": "cdn." + domain, "packets": 1},
+            {"domain": f"cdn.{domain}", "packets": 1},
         ]
 
     # Synthesize top IPs from the domain resolution
@@ -190,8 +199,8 @@ def generate_synthetic_pcap(url, filepath):
     domain = url.replace("https://", "").replace("http://", "").split("/")[0]
     try:
         ip = socket.gethostbyname(domain)
-    except socket.gaierror:
-        raise ValueError(f"Could not resolve domain: {domain}")
+    except socket.gaierror as e:
+        raise ValueError(f"Could not resolve domain: {domain}") from e
 
     pkts = []
     client_mac = "00:11:22:33:44:55"
@@ -245,16 +254,24 @@ def index():
 
 @app.route("/analyze_url", methods=["POST"])
 def analyze_url():
-    req = request.get_json()
+    req = request.get_json(silent=True)
+    if req is None and request.data:
+        return jsonify({"error": "Malformed JSON payload"}), 400
+
     if not req or "url" not in req:
         return jsonify({"error": "No URL provided"}), 400
 
-    url = req["url"].strip()
-    if not url:
-        return jsonify({"error": "Empty URL"}), 400
+    url = str(req["url"]).strip()
+    if not url or len(url) > 255:
+        return jsonify({"error": "Invalid or oversized URL (max 255 chars)"}), 400
+
+    # Basic domain/URL validation
+    import re
+    if not re.match(r"^[a-zA-Z0-9\-\.\:\/]+$", url):
+        return jsonify({"error": "URL contains invalid characters"}), 400
 
     if not url.startswith("http"):
-        url = "https://" + url
+        url = f"https://{url}"
 
     filename = f"synthetic_{uuid.uuid4().hex}.pcap"
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
@@ -273,12 +290,43 @@ def analyze_url():
         return jsonify(result)
 
     except Exception as e:
-        import traceback
-
-        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+        return jsonify({"error": "Processing error", "details": str(e)}), 500
     finally:
         if os.path.exists(filepath):
             os.remove(filepath)
+
+
+@app.route("/login", methods=["POST"])
+@limiter.limit("5 per 15 minutes")
+def login():
+    data = request.get_json(silent=True)
+    if data is None and request.data:
+        return jsonify({"error": "Malformed JSON payload"}), 400
+
+    if not data:
+        return jsonify({"error": "Empty payload"}), 400
+
+    username = str(data.get("username", "")).strip()
+    password = str(data.get("password", "")).strip()
+
+    if not username or not password:
+        return jsonify({"error": "Username and password required"}), 400
+
+    if len(username) > 64 or len(password) > 64:
+        return jsonify({"error": "Username/Password too long (max 64 chars)"}), 400
+
+    # For demonstration, only "admin"/"admin" is valid
+    if username == "admin" and password == "admin":
+        return jsonify({"message": "Login successful", "token": "dummy-jwt-token"}), 200
+    else:
+        return jsonify({"message": "Invalid credentials"}), 401
+
+
+@app.route("/register", methods=["POST"])
+@limiter.limit("5 per 15 minutes")
+def register():
+    # Placeholder for registration logic
+    return jsonify({"message": "Registration successful"}), 201
 
 
 if __name__ == "__main__":

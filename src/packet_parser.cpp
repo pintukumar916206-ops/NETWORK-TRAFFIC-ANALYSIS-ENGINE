@@ -148,7 +148,9 @@ static size_t ip6_decode(const uint8_t* data, size_t len, size_t off, ParsedPack
     while (off < len) {
         if (next == proto::TCP || next == proto::UDP || next == proto::ICMP) break;
         if (off + 8 > len) break;
-        uint8_t ext = (data[off + 1] + 1) * 8;
+        uint8_t ext_len = data[off + 1];
+        size_t  ext = (static_cast<size_t>(ext_len) + 1) * 8;
+        if (ext == 0) break; // Safety break
         next = data[off];
         off += ext;
     }

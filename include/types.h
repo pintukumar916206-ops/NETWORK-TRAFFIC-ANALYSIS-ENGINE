@@ -207,10 +207,13 @@ struct Flow {
         if (expected_seq == 0) expected_seq = seq;
         if (seq != expected_seq) return false;
         
+        if (reassembly_buffer.size() + static_cast<size_t>(len) > 16384) {
+            dpi_complete = true;
+            return false;
+        }
+
         reassembly_buffer.insert(reassembly_buffer.end(), data, data + static_cast<size_t>(len));
         expected_seq += static_cast<uint32_t>(len);
-        
-        if (reassembly_buffer.size() > 16384) dpi_complete = true;
         return true;
     }
  

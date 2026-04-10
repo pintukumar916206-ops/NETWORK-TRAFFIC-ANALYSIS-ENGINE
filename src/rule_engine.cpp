@@ -60,11 +60,15 @@ void RuleEngine::addBlockIP(const std::string& token) {
 
     int bits = slash != std::string::npos ? std::stoi(token.substr(slash + 1)) : 32;
 
-    uint32_t ip = dotted_to_u32(host);
-    uint8_t  b[4];
-    u32_to_bytes(ip, b);
-    v4_trie_.insert(b, bits);
-    has_v4_rules_ = true;
+    try {
+        uint32_t ip = dotted_to_u32(host);
+        uint8_t  b[4];
+        u32_to_bytes(ip, b);
+        v4_trie_.insert(b, bits);
+        has_v4_rules_ = true;
+    } catch (const std::exception& e) {
+        LOG_ERROR(std::string("Skipping invalid IP rule: ") + token + " (" + e.what() + ")");
+    }
 }
 
 void RuleEngine::addBlockDomain(const std::string& pat) {
@@ -140,10 +144,16 @@ int RuleEngine::loadFromFile(const std::string& path) {
         std::string type = rule["type"].get<std::string>();
         std::string value;
         if (rule["value"].is_number()) {
-            value = std::to_string(rule["value"].get<int>());
+            value = std::to_string(rule["value"].get<long long>());
         } else if (rule["value"].is_string()) {
             value = rule["value"].get<std::string>();
         } else {
+            LOG_ERROR("[RULES] Unsupported value type for rule: " + type);
+            continue;
+        }
+
+        if (value.length() > 256) {
+            LOG_ERROR("[RULES] Value too long for rule: " + type);
             continue;
         }
 

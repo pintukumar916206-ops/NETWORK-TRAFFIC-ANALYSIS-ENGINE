@@ -53,7 +53,16 @@ int main(int argc, char **argv) {
     } else if (arg == "--output" && i + 1 < argc) {
       cfg.output_file = argv[++i];
     } else if (arg == "--threads" && i + 1 < argc) {
-      cfg.num_workers = std::stoi(argv[++i]);
+      try {
+        cfg.num_workers = std::stoi(argv[++i]);
+        if (cfg.num_workers < 1 || cfg.num_workers > 64) {
+          LOG_ERROR("Error: --threads must be between 1 and 64.");
+          return 1;
+        }
+      } catch (...) {
+        LOG_ERROR("Error: --threads expects a numeric value.");
+        return 1;
+      }
     } else if (arg == "--stats") {
       cfg.live_stats = true;
     } else if (arg == "--json") {
@@ -73,9 +82,24 @@ int main(int argc, char **argv) {
     } else if (arg == "--loop") {
       cfg.loop = true;
     } else if (arg == "--delay" && i + 1 < argc) {
-      cfg.delay_ms = std::stoi(argv[++i]);
+      try {
+        cfg.delay_ms = std::stoi(argv[++i]);
+      } catch (...) {
+        LOG_ERROR("Error: --delay expects a numeric value.");
+        return 1;
+      }
     } else if (arg == "--block-port" && i + 1 < argc) {
-      block_ports.push_back(std::stoi(argv[++i]));
+      try {
+        int port = std::stoi(argv[++i]);
+        if (port < 0 || port > 65535) {
+          LOG_ERROR("Error: --block-port must be between 0 and 65535.");
+          return 1;
+        }
+        block_ports.push_back(static_cast<uint16_t>(port));
+      } catch (...) {
+        LOG_ERROR("Error: --block-port expects a numeric value.");
+        return 1;
+      }
     }
   }
 
