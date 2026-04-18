@@ -1,0 +1,10 @@
+build/
+build_msvc/
+.vscode/
+.cache/
+*.err
+*.log
+test_runner.exe
+high_performance_engine.exe
+uploads/
+.git/

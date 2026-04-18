@@ -1,0 +1,9 @@
+{
+  "rules": [
+    { "type": "domain", "value": "facebook.com" },
+    { "type": "domain", "value": "ads.doubleclick.net" },
+    { "type": "ip",     "value": "104.16.0.0/12" },
+    { "type": "port",   "value": "6881" },
+    { "type": "app",    "value": "bittorrent" }
+  ]
+}
