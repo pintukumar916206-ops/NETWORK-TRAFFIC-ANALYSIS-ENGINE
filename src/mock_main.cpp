@@ -1,9 +1,7 @@
+#include "compat.h"
 #include <iostream>
 #include <string>
 #include <random>
-#include <chrono>
-#include <thread>
-#include <windows.h>
 
 int main(int argc, char* argv[]) {
     int interval = 0;
@@ -22,7 +20,7 @@ int main(int argc, char* argv[]) {
     // Default to a single run if no interval is specified
     do {
         // Simulate processing time
-        Sleep(500);
+        compat::sleep_ms(500);
 
         // Generate random-ish stats
         std::random_device rd;
@@ -51,7 +49,7 @@ int main(int argc, char* argv[]) {
 
         if (interval > 0) {
             std::cout << "Waiting " << interval << "s for next update... (Press Ctrl+C to stop)" << std::endl;
-            Sleep(interval * 1000);
+            compat::sleep_ms(interval * 1000);
         }
     } while (interval > 0);
 
