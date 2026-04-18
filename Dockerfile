@@ -24,7 +24,6 @@ RUN pip install --no-cache-dir gunicorn eventlet && \
 
 # Copy necessary files only
 COPY scripts/ /app/scripts/
-COPY templates/ /app/templates/
 COPY --from=builder /app/engine_bin /app/traffic_engine
 
 # Ensure permissions and directories
